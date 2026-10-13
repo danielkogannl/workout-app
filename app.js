@@ -16,7 +16,7 @@ const DEFAULT={days:[
  {name:'Day A – Bench',ex:[X('Barbell Bench Press',4,5,8,2.5,60,180),X('Leg Press',3,8,12,5,100,150),X('Chest-Supported DB Row',3,8,12,2,22,120),X('Lying Leg Curl',3,10,15,2.5,30,90,1),X('DB Lateral Raise',3,12,20,1,8,60,1),X('Face Pull',2,12,20,2.5,15,60,1),X('Suitcase Carry (kg, 30 m/side)',2,1,1,2,20,90)],warm:W},
  {name:'Day B – Pull',ex:[X('Pull-up (+kg)',4,5,10,1.25,0,150),X('Romanian Deadlift (light)',3,8,12,2.5,35,120),X('Seated DB Shoulder Press',3,8,12,2,16,120),X('Bulgarian Split Squat (DB/hand)',3,8,12,2,10,120),X('Incline DB Curl',2,10,15,1,10,60,1),X('Cable Triceps Pushdown',2,10,15,2.5,20,60,1),X('Reverse Pec Deck / Rear Delt Fly',2,12,20,2.5,20,60,1)],warm:W},
  {name:'Day C – DB Press',ex:[X('Flat DB Bench Press (DB/hand)',3,8,12,2,22,150),X('Lat Pulldown',3,8,12,2.5,50,120),X('Leg Press (high rep)',3,12,20,5,85,120),X('Leg Extension',2,10,15,2.5,35,90,1),X('Seated Cable Row',3,10,12,2.5,50,90),X('Seated Leg Curl (3 s eccentric)',2,10,15,2.5,30,60,1),X('Pallof Press (reps/side)',2,10,12,2.5,10,60,1)],warm:W}]};
-const PROGRAM_VERSION=3,CAPS={'romanian deadlift (light)':40};
+const PROGRAM_VERSION=3.1,CAPS={'romanian deadlift (light)':40};
 // mesocycle: 4 build weeks (RIR 3,2,2,1) + 1 deload week; 3 sessions = 1 week
 const MESO=[3,2,2,1,'deload'];
 function mesoWeek(){const n=S.history.filter(h=>h.date>=(S.mesoStart||0)).length;return Math.floor(n/S.program.days.length)%MESO.length}
