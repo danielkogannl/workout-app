@@ -11,10 +11,11 @@ const OLD_DEFAULT_V2={days:[
  {name:'Workout C',ex:[E('Leg Press (moderate)',3,10,15,5,60),E('Incline DB Press',3,8,12,2.5,12),E('Seated Cable Row',3,8,12,2.5,35),E('Lying Leg Curl',2,10,15,2.5,25),E('Face Pull',2,12,15,2.5,15)]}]};
 // v3: evidence-based, disc-friendly full body x3 (~60 min). rest = seconds; rir = RIR offset (0 compounds, -1 isolation = 1 closer to failure)
 const X=(n,s,mi,ma,inc,w,rest,iso)=>({...E(n,s,mi,ma,inc,w),rest,rir:iso?-1:0});
+const W='10 min: 2 min easy cardio · 90/90 hip breathing ×5 · foam-roller thoracic extension ×10 · cat-cow ×8 · bird-dog 2×6/side · dead bug 2×6/side · side plank 2×20 s/side · 2–3 ramp-up sets of first lift. Finish: hamstring stretch (supine strap or elevated-heel hinge) 3×30–45 s + hip-flexor (half-kneeling) 2×30 s/side.';
 const DEFAULT={days:[
- {name:'Day A – Bench',ex:[X('Barbell Bench Press',4,5,8,2.5,60,180),X('Leg Press',3,8,12,5,100,150),X('Chest-Supported DB Row',3,8,12,2,22,120),X('Lying Leg Curl',3,10,15,2.5,30,90,1),X('DB Lateral Raise',3,12,20,1,8,60,1),X('Farmer Carry (kg/hand, 40 m)',2,1,1,2,24,90)]},
- {name:'Day B – Pull',ex:[X('Pull-up (+kg)',4,5,10,1.25,0,150),X('Romanian Deadlift (light)',3,8,12,2.5,35,120),X('Seated DB Shoulder Press',3,8,12,2,16,120),X('Bulgarian Split Squat (DB/hand)',3,8,12,2,10,120),X('Incline DB Curl',2,10,15,1,10,60,1),X('Cable Triceps Pushdown',2,10,15,2.5,20,60,1)]},
- {name:'Day C – DB Press',ex:[X('Flat DB Bench Press (DB/hand)',3,8,12,2,22,150),X('Lat Pulldown',3,8,12,2.5,50,120),X('Leg Press (high rep)',3,12,20,5,85,120),X('Leg Extension',2,10,15,2.5,35,90,1),X('Seated Cable Row',3,10,12,2.5,50,90),X('Cable Crunch / Pallof',2,10,15,2.5,25,60,1)]}]};
+ {name:'Day A – Bench',ex:[X('Barbell Bench Press',4,5,8,2.5,60,180),X('Leg Press',3,8,12,5,100,150),X('Chest-Supported DB Row',3,8,12,2,22,120),X('Lying Leg Curl',3,10,15,2.5,30,90,1),X('DB Lateral Raise',3,12,20,1,8,60,1),X('Face Pull',2,12,20,2.5,15,60,1),X('Suitcase Carry (kg, 30 m/side)',2,1,1,2,20,90)],warm:W},
+ {name:'Day B – Pull',ex:[X('Pull-up (+kg)',4,5,10,1.25,0,150),X('Romanian Deadlift (light)',3,8,12,2.5,35,120),X('Seated DB Shoulder Press',3,8,12,2,16,120),X('Bulgarian Split Squat (DB/hand)',3,8,12,2,10,120),X('Incline DB Curl',2,10,15,1,10,60,1),X('Cable Triceps Pushdown',2,10,15,2.5,20,60,1),X('Reverse Pec Deck / Rear Delt Fly',2,12,20,2.5,20,60,1)],warm:W},
+ {name:'Day C – DB Press',ex:[X('Flat DB Bench Press (DB/hand)',3,8,12,2,22,150),X('Lat Pulldown',3,8,12,2.5,50,120),X('Leg Press (high rep)',3,12,20,5,85,120),X('Leg Extension',2,10,15,2.5,35,90,1),X('Seated Cable Row',3,10,12,2.5,50,90),X('Seated Leg Curl (3 s eccentric)',2,10,15,2.5,30,60,1),X('Pallof Press (reps/side)',2,10,12,2.5,10,60,1)],warm:W}]};
 const PROGRAM_VERSION=3,CAPS={'romanian deadlift (light)':40};
 // mesocycle: 4 build weeks (RIR 3,2,2,1) + 1 deload week; 3 sessions = 1 week
 const MESO=[3,2,2,1,'deload'];
@@ -42,7 +43,7 @@ function render(){document.querySelectorAll('nav button').forEach(b=>b.classList
 function vHome(){setTitle('Lift');const d=S.program.days[S.next%S.program.days.length],last=S.history[0];
  V.innerHTML=`<div class="card"><div class="muted">Next workout</div><div class="big">${esc(d.name)}</div><div class="muted">Meso week ${mesoWeek()+1}/5 · ${isDeload()?'<b>DELOAD</b>: half sets, same weights, easy':'target RIR '+MESO[mesoWeek()]+' (isolations 1 less)'}</div>
  ${d.ex.map(e=>{const s=stat(e);return`<div class="li"><span>${esc(e.name)}</span><span class="muted">${isDeload()?Math.ceil(e.sets/2):e.sets}×${e.min}–${e.max} @${rirFor(e)} RIR · ${s.w} kg${s.note?`<span class="tag">${s.note}</span>`:''}</span></div>`}).join('')}
- <button class="btn green" id="go">Start ${esc(d.name)}</button></div>
+ ${d.warm?`<div class="muted" style="margin-top:8px"><b>Warm-up & mobility:</b> ${esc(d.warm)}</div>`:''}<button class="btn green" id="go">Start ${esc(d.name)}</button></div>
  <div class="card"><div class="muted">Rotation</div><div>${S.program.days.map((x,i)=>i===S.next%S.program.days.length?`<b>${esc(x.name)}</b>`:esc(x.name)).join(' → ')} → …</div>
  <div class="muted" style="margin-top:6px">Train 2–3×/week; the rotation simply continues.</div>
  <button class="btn sec" id="skip">Skip to next day</button></div><div class="card">${cond}</div>
@@ -50,11 +51,11 @@ function vHome(){setTitle('Lift');const d=S.program.days[S.next%S.program.days.l
  $('#go').onclick=start;$('#skip').onclick=()=>{S.next=(S.next+1)%S.program.days.length;save();render()}}
 
 function start(){const di=S.next%S.program.days.length,d=S.program.days[di];
- S.active={di,deload:isDeload(),day:d.name,date:Date.now(),ex:d.ex.map(e=>{const w=stat(e).w;const ls=lastSets(e.name);return{name:e.name,min:e.min,max:e.max,inc:e.inc,rest:e.rest,rir:rirFor(e),last:ls,sets:Array.from({length:isDeload()?Math.ceil(e.sets/2):e.sets},()=>({w,r:e.max,done:false}))}})};save();render()}
+ S.active={warm:d.warm,di,deload:isDeload(),day:d.name,date:Date.now(),ex:d.ex.map(e=>{const w=stat(e).w;const ls=lastSets(e.name);return{name:e.name,min:e.min,max:e.max,inc:e.inc,rest:e.rest,rir:rirFor(e),last:ls,sets:Array.from({length:isDeload()?Math.ceil(e.sets/2):e.sets},()=>({w,r:e.max,done:false}))}})};save();render()}
 
 function lastSets(n){const h=S.history.find(h=>h.ex.some(x=>k(x.name)===k(n)));return h?h.ex.find(x=>k(x.name)===k(n)).sets.map(s=>s.w+'×'+s.r).join(', '):''}
 function vWork(){const a=S.active;setTitle(a.day);
- V.innerHTML=a.ex.map((e,i)=>`<div class="card"><div class="row"><b style="flex:3">${esc(e.name)}</b><span class="muted" style="text-align:right">${e.sets.length}×${e.min}–${e.max}${e.rir!=null?' @'+e.rir+' RIR':''}</span></div>${e.last?`<div class="muted" style="font-size:12px">Last: ${esc(e.last)}</div>`:''}
+ V.innerHTML=(a.warm?`<div class="card muted"><b>Warm-up:</b> ${esc(a.warm)}</div>`:'')+a.ex.map((e,i)=>`<div class="card"><div class="row"><b style="flex:3">${esc(e.name)}</b><span class="muted" style="text-align:right">${e.sets.length}×${e.min}–${e.max}${e.rir!=null?' @'+e.rir+' RIR':''}</span></div>${e.last?`<div class="muted" style="font-size:12px">Last: ${esc(e.last)}</div>`:''}
  <div class="set muted" style="font-size:12px;margin:4px 0"><span class="n">Set</span><span style="text-align:center">kg</span><span style="text-align:center">reps</span><span></span></div>
  ${e.sets.map((s,j)=>`<div class="set ${s.done?'done':''}"><span class="n">${j+1}</span><input inputmode="decimal" data-i="${i}" data-j="${j}" data-f="w" value="${s.w}"><input inputmode="numeric" data-i="${i}" data-j="${j}" data-f="r" value="${s.r}"><button class="chk ${s.done?'done':''}" data-i="${i}" data-j="${j}">✓</button></div>`).join('')}
  <div class="row"><button class="btn sec" data-add="${i}">+ Set</button><button class="btn sec" data-rm="${i}">− Set</button></div></div>`).join('')+
