@@ -92,14 +92,14 @@ function vWork(){const a=S.active;setTitle(a.day);
  <div class="set muted" style="font-size:12px;margin:4px 0"><span class="n">Set</span><span style="text-align:center">kg</span><span style="text-align:center">reps</span><span></span></div>
  ${e.sets.map((s,j)=>`<div class="set ${s.done?'done':''}"><span class="n">${j+1}</span><input inputmode="decimal" data-i="${i}" data-j="${j}" data-f="w" value="${s.w}"><input inputmode="numeric" data-i="${i}" data-j="${j}" data-f="r" value="${s.r}"><button class="chk ${s.done?'done':''}" data-i="${i}" data-j="${j}">✓</button></div>`).join('')}
  <div class="row"><button class="btn sec" data-add="${i}">+ Set</button><button class="btn sec" data-rm="${i}">− Set</button></div></div>`).join('')+
- `<div class="card"><button class="btn sec" id="addx">+ Add an extra / swapped exercise</button></div><div class="card"><details><summary><b>Cool-down (2 min)</b></summary><ul>${COOL.map(x=>`<li>${x}</li>`).join('')}</ul></details>
+ alertCard()+`<div class="card"><button class="btn sec" id="addx">+ Add an extra / swapped exercise</button></div><div class="card"><details><summary><b>Cool-down (2 min)</b></summary><ul>${COOL.map(x=>`<li>${x}</li>`).join('')}</ul></details>
  <button class="btn green" id="fin">Finish workout</button><button class="btn red" id="cancel">Discard workout</button></div>`;
  V.querySelectorAll('input[data-f]').forEach(n=>n.onchange=()=>{const s=a.ex[n.dataset.i].sets[n.dataset.j];s[n.dataset.f]=parseFloat(n.value.replace(',','.'))||0;
   if(n.dataset.f==='w')a.ex[n.dataset.i].sets.forEach((x,j)=>{if(j>n.dataset.j&&!x.done)x.w=s.w});save();vWork()});
- V.querySelectorAll('.chk').forEach(b=>b.onclick=()=>{const s=a.ex[b.dataset.i].sets[b.dataset.j];s.done=!s.done;save();if(s.done)timer(a.ex[b.dataset.i].rest||S.rest);const y=scrollY;vWork();scrollTo(0,y)});
+ V.querySelectorAll('.chk').forEach(b=>b.onclick=()=>{unlockAudio();const s=a.ex[b.dataset.i].sets[b.dataset.j];s.done=!s.done;save();if(s.done)timer(a.ex[b.dataset.i].rest||S.rest);const y=scrollY;vWork();scrollTo(0,y)});
  V.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const ss=a.ex[b.dataset.add].sets,l=ss[ss.length-1]||{w:0,r:0};ss.push({w:l.w,r:l.r,done:false});save();const y=scrollY;vWork();scrollTo(0,y)});
  V.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{a.ex[b.dataset.rm].sets.pop();save();const y=scrollY;vWork();scrollTo(0,y)});
- bindInfo();$('#addx').onclick=()=>{const n=(prompt('Exercise name (e.g. the machine you used instead):')||'').trim();if(!n)return;const pe=progEx(n),w=pe?stat(pe).w:0;a.ex.push({name:pe?pe.name:n,min:pe?pe.min:8,max:pe?pe.max:12,inc:pe?pe.inc:2.5,rest:pe&&pe.rest||90,cue:'Log what you actually do',last:lastSets(n),sets:Array.from({length:3},()=>({w,r:pe?pe.max:10,done:false}))});save();vWork();scrollTo(0,document.body.scrollHeight)};
+ bindInfo();bindAlerts();$('#addx').onclick=()=>{const n=(prompt('Exercise name (e.g. the machine you used instead):')||'').trim();if(!n)return;const pe=progEx(n),w=pe?stat(pe).w:0;a.ex.push({name:pe?pe.name:n,min:pe?pe.min:8,max:pe?pe.max:12,inc:pe?pe.inc:2.5,rest:pe&&pe.rest||90,cue:'Log what you actually do',last:lastSets(n),sets:Array.from({length:3},()=>({w,r:pe?pe.max:10,done:false}))});save();vWork();scrollTo(0,document.body.scrollHeight)};
  $('#fin').onclick=finish;$('#cancel').onclick=()=>{if(confirm('Discard this workout?')){S.active=null;save();render()}}}
 
 function finish(){const a=S.active,done=a.ex.map(e=>({...e,sets:cleanSets((e.sets||[]).filter(s=>s.done))})).filter(e=>e.sets.length);
@@ -110,11 +110,51 @@ function finish(){const a=S.active,done=a.ex.map(e=>({...e,sets:cleanSets((e.set
  S.history.unshift({id:a.date,date:a.date,day:a.day,offPlan:!!a.offPlan,ex:done.map(e=>({name:e.name,sets:e.sets.map(s=>({w:s.w,r:s.r}))}))});
  S.next=(a.di+1)%S.program.days.length;S.active=null;save();stopT();render()}
 
-let tI=null,tEnd=0;
-function timer(sec){tEnd=Date.now()+sec*1000;$('#timer').classList.remove('hidden');clearInterval(tI);tI=setInterval(tick,250);tick()}
-function tick(){const l=Math.round((tEnd-Date.now())/1000);if(l<=0){stopT();navigator.vibrate&&navigator.vibrate([200,100,200]);return}$('#tleft').textContent=Math.floor(l/60)+':'+String(l%60).padStart(2,'0')}
-function stopT(){clearInterval(tI);$('#timer').classList.add('hidden')}
-$('#tplus').onclick=()=>{tEnd+=15000;tick()};$('#tminus').onclick=()=>{tEnd-=15000;tick()};$('#tstop').onclick=stopT;
+// ---- Rest timer (timestamp-based) + beep + Web Push at rest end ----
+let tI=null,AC=null;
+const pushUrl=()=>localStorage.getItem('lift.pushUrl')||PUSH_CFG.url;
+const devId=()=>{let d=localStorage.getItem('lift.dev');if(!d){d='dev-'+Math.random().toString(36).slice(2,12)+Date.now().toString(36);localStorage.setItem('lift.dev',d)}return d};
+function unlockAudio(){try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();const b=AC.createBuffer(1,1,22050),s=AC.createBufferSource();s.buffer=b;s.connect(AC.destination);s.start(0)}catch(e){}}
+function beep(){try{if(!AC)return;[0,0.3,0.6].forEach(o=>{const g=AC.createGain(),os=AC.createOscillator();os.frequency.value=880;os.connect(g);g.connect(AC.destination);const t0=AC.currentTime+o;g.gain.setValueAtTime(0.0001,t0);g.gain.exponentialRampToValueAtTime(0.5,t0+0.02);g.gain.exponentialRampToValueAtTime(0.0001,t0+0.22);os.start(t0);os.stop(t0+0.25)})}catch(e){}}
+function pushCall(path,body){const u=pushUrl();if(!u||!S.push||!S.push.sub)return Promise.resolve(false);
+ return fetch(u.replace(/\/$/,'')+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:devId(),...body}),keepalive:true}).then(r=>r.ok).catch(()=>false)}
+function schedulePush(){const t=S.timer;if(!t)return;t.pushed=!!(pushUrl()&&S.push&&S.push.sub);t.pushCancelled=false;save();
+ if(t.pushed)pushCall('/schedule',{sub:S.push.sub,at:t.end,title:'Rest over ⏱',body:'Time for your next set'})}
+function cancelPush(){const t=S.timer;if(t&&t.pushed&&!t.pushCancelled){t.pushCancelled=true;save();pushCall('/cancel',{})}}
+function timer(sec){unlockAudio();S.timer=RT.start(Date.now(),sec);save();schedulePush();showT()}
+function showT(){$('#timer').classList.remove('hidden','over');$('#tlbl').textContent='Rest';clearInterval(tI);tI=setInterval(tick,250);tick()}
+function tick(){const t=S.timer;if(!t)return stopT();const now=Date.now();
+ if(RT.shouldCancelPush(t,now,document.visibilityState==='visible'))cancelPush();
+ if(RT.done(t,now)){clearInterval(tI);restOver(now-t.end);return}
+ $('#tleft').textContent=RT.fmt(RT.left(t,now));$('#tbar').style.width=(RT.frac(t,now)*100)+'%'}
+function restOver(lateMs){S.timer=null;save();beep();navigator.vibrate&&navigator.vibrate([200,100,200]);
+ const el=$('#timer');el.classList.remove('hidden');el.classList.add('over');$('#tlbl').textContent=lateMs>5000?'Rest ended '+RT.fmt(lateMs/1000)+' ago':'Rest over';$('#tleft').textContent='Next set! 💪';$('#tbar').style.width='0%'}
+function stopT(){clearInterval(tI);if(S.timer){cancelPush();S.timer=null;save()}$('#timer').classList.add('hidden');$('#timer').classList.remove('over')}
+function adjT(d){if(!S.timer)return;S.timer=RT.adjust(S.timer,d,Date.now());save();schedulePush();tick()}
+$('#tplus').onclick=()=>adjT(15);$('#tminus').onclick=()=>adjT(-15);$('#tstop').onclick=stopT;
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&S.timer)showT()});
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const standalone=()=>navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+function alertState(){if(!('Notification'in window)||!('serviceWorker'in navigator)||!('PushManager'in window))return isIOS&&!standalone()?'addhome':'unsupported';
+ if(Notification.permission==='denied')return'denied';return S.push&&S.push.sub&&Notification.permission==='granted'?'on':'off'}
+const ALERT_HELP=`<h3>Rest alerts</h3><p>The app beeps when rest ends while it is open. To also get a <b>notification when you are in another app</b>:</p><ol><li>Open this site in <b>Safari</b> on your iPhone (iOS 16.4 or newer).</li><li>Tap <b>Share</b> → <b>Add to Home Screen</b>.</li><li>Open <b>Lift</b> from the Home Screen icon (not from Safari).</li><li>Tap <b>Enable rest alerts</b> and choose <b>Allow</b>.</li></ol><p class="muted">Tip: turn the ringer on / volume up for the in-app beep. Focus modes can hide notifications.</p>`;
+async function enableAlerts(){const st=alertState();
+ if(st==='addhome'||st==='unsupported')return modal(ALERT_HELP+(st==='unsupported'?'<p><b>This browser doesn’t support web push.</b></p>':''));
+ if(st==='denied')return modal('<h3>Notifications blocked</h3><p>iPhone Settings → Notifications → Lift → Allow Notifications. Then try again.</p>');
+ try{const p=await Notification.requestPermission();if(p!=='granted')return modal('<h3>Not allowed</h3><p>Rest alerts stay off. The in-app beep still works.</p>');
+  const reg=await navigator.serviceWorker.ready,key=b64uBytes(PUSH_CFG.vapidPublicKey);
+  let sub=await reg.pushManager.getSubscription();if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+  S.push={sub:sub.toJSON(),at:Date.now()};save();render();
+  modal(pushUrl()?'<h3>Rest alerts on ✓</h3><p>You’ll get a notification when rest ends, even in another app. Tap “Send test” to check.</p>':'<h3>Almost there</h3><p>Notifications are allowed on this phone. The alert server isn’t switched on yet; until then the app beeps while open.</p>')
+ }catch(e){modal('<h3>Couldn’t enable alerts</h3><p>'+esc(e.message||e)+'</p>'+ALERT_HELP)}}
+function b64uBytes(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return Uint8Array.from(atob(s),c=>c.charCodeAt(0))}
+function testAlert(){if(!pushUrl())return modal('<h3>Server not set up yet</h3><p>Push server isn’t deployed yet; in-app beep only.</p>');unlockAudio();
+ pushCall('/schedule',{sub:S.push.sub,at:Date.now()+5000,title:'Test ✓',body:'Rest alerts work. Lock the phone or switch apps — it arrives in ~5 s.'}).then(ok=>modal(ok?'<h3>Test sent</h3><p>Switch to another app now; a notification should arrive in ~5 seconds.</p>':'<h3>Test failed</h3><p>Couldn’t reach the alert server.</p>'))}
+function alertCard(){const st=alertState(),txt={on:'🔔 Rest alerts: on',off:'🔕 Rest alerts: off',addhome:'🔕 Rest alerts need Home Screen app',unsupported:'🔕 Rest alerts not supported here',denied:'🔕 Notifications blocked'}[st];
+ return`<div class="card"><div class="row"><b>${txt}</b><button class="ib" data-ah>i</button></div>${st==='on'?`<button class="btn sec" data-at>Send test notification</button>`:`<button class="btn" data-ae>Enable rest alerts</button>`}</div>`}
+function bindAlerts(){V.querySelectorAll('[data-ae]').forEach(b=>b.onclick=enableAlerts);V.querySelectorAll('[data-at]').forEach(b=>b.onclick=testAlert);V.querySelectorAll('[data-ah]').forEach(b=>b.onclick=()=>modal(ALERT_HELP))}
+// keep subscription fresh (browsers may rotate it)
+if('serviceWorker'in navigator&&'PushManager'in window&&S.push)navigator.serviceWorker.ready.then(r=>r.pushManager.getSubscription()).then(s=>{if(s){S.push.sub=s.toJSON();save()}}).catch(()=>{});
 
 function vHistory(){setTitle('History');if(!S.history.length){V.innerHTML='<div class="card muted">No workouts yet.</div>';return}
  V.innerHTML=S.history.map((h,i)=>`<div class="card"><div class="row"><b>${esc(h.day)}</b><span class="muted" style="text-align:right">${new Date(h.date).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})}</span></div>
@@ -143,12 +183,12 @@ function draw(c,d){const dpr=devicePixelRatio||1,W=c.clientWidth,H=200;c.width=W
 function vProgram(){if(sub&&sub.d!=null)return vDay(sub.d);setTitle('Program');
  V.innerHTML=S.program.days.map((d,i)=>`<div class="card"><div class="row"><b>${esc(d.name)}</b><button class="btn sec" style="margin:0;flex:0 0 90px;min-height:44px" data-ed="${i}">Edit</button></div>
  ${d.ex.map(e=>`<div class="muted">${esc(e.name)} — ${e.sets}×${e.min}–${e.max}</div>`).join('')}</div>`).join('')+
- `<div class="card"><button class="btn sec" id="addday">+ Add day</button>
+ alertCard()+`<div class="card"><button class="btn sec" id="addday">+ Add day</button>
  <button class="btn" id="exp">Export backup (JSON)</button><button class="btn sec" id="imp">Import backup</button><input type="file" id="file" accept="application/json,.json" class="hidden">
  <button class="btn red" id="reset">Reset program to default</button></div>`;
  V.querySelectorAll('[data-ed]').forEach(b=>b.onclick=()=>{sub={d:+b.dataset.ed};render()});
  $('#addday').onclick=()=>{S.program.days.push({name:'Workout '+String.fromCharCode(65+S.program.days.length),ex:[]});save();sub={d:S.program.days.length-1};render()};
- $('#exp').onclick=exportJSON;$('#imp').onclick=()=>$('#file').click();
+ bindAlerts();$('#exp').onclick=exportJSON;$('#imp').onclick=()=>$('#file').click();
  $('#file').onchange=e=>{const f=e.target.files[0];if(!f)return;f.text().then(t=>{try{const s=JSON.parse(t);if(!s.program||!s.history)throw 0;if(confirm('Replace all data with this backup?')){S=s;save();render()}}catch(x){alert('Invalid backup file')}})};
  $('#reset').onclick=()=>{if(confirm('Reset program days/exercises to default? History is kept.')){S.program=JSON.parse(JSON.stringify(DEFAULT));S.next=0;S.pv=PROGRAM_VERSION;S.mesoStart=Date.now();save();render()}}}
 function exportJSON(){const b=new Blob([JSON.stringify(S,null,1)],{type:'application/json'}),n='lift-backup-'+new Date().toISOString().slice(0,10)+'.json',f=new File([b],n,{type:'application/json'});
@@ -172,4 +212,5 @@ function vDay(i){const d=S.program.days[i];setTitle(d.name,()=>{sub=null;render(
  $('#delday').onclick=()=>{if(S.program.days.length<2)return alert('Keep at least one day.');if(confirm('Delete '+d.name+'?')){S.program.days.splice(i,1);S.next%=S.program.days.length;sub=null;save();render()}}}
 
 render();
+if(S.timer){if(RT.done(S.timer,Date.now())&&Date.now()-S.timer.end>10*60e3){S.timer=null;save()}else showT()}
 if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');

@@ -1,0 +1,15 @@
+name = "lift-rest-push"
+main = "src/index.js"
+compatibility_date = "2026-05-01"
+
+[[durable_objects.bindings]]
+name = "TIMER"
+class_name = "RestTimer"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RestTimer"]
+
+[vars]
+VAPID_PUBLIC_KEY = "BHdqLs6AQa0uvjtCEcuqrPTnuGoxnzqrC3dGLygzvBRLpo-o-73AY0LF1wEpfL5TGp_7PF3M1GHb1Dauk6QLWH0"
+VAPID_SUBJECT = "mailto:danielkogannl@users.noreply.github.com"

@@ -36,3 +36,7 @@ label{display:block;font-size:13px;color:#8e8e93;margin:8px 0 4px}
 details summary{cursor:pointer;padding:4px 0}details ul{padding-left:20px;margin:6px 0}
 .card.warn{border:1px solid #ff9f0a}.card.warn p{margin:6px 0}
 main{padding-bottom:110px}
+#timer{overflow:hidden;padding:12px}#timer.over{background:#30d158}
+#tbar{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.18);width:0;transition:width .25s linear;pointer-events:none}
+#tcol{flex:1;display:flex;flex-direction:column;position:relative;padding-left:8px}#tlbl{font-size:13px;opacity:.85}
+#tleft{font-size:40px;padding-left:0}#timer button{position:relative}

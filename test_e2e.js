@@ -37,6 +37,34 @@ await g.screenshot({path:O+'7-back-on-track.png',fullPage:true});
 await g.evaluate(()=>{S.summary=null;S.history.forEach(h=>h.date-=20*864e5);save()});await g.reload();await g.waitForSelector('#go');t=await g.$eval('#view',e=>e.innerText);
 ck(/It’s been 2\d days/.test(t),'gap guidance shown');await g.screenshot({path:O+'8-long-gap.png'});
 await g.$eval('#go',x=>x.click());await g.waitForSelector('.chk');t=await g.$eval('#view',e=>e.innerText);ck(t.includes('@ 57.5 kg'),'re-entry bench 62.5 -> 57.5 kg (~10% lighter)');
+// ---- rest timer ----
+await g.evaluate(()=>{S.active=null;S.summary=null;S.history.forEach(h=>h.date=Date.now()-864e5);save()});await g.reload();await g.waitForSelector('#go');
+await g.evaluate(()=>{window.__f=[];const of=window.fetch;window.fetch=(u,o)=>{window.__f.push(String(u).split('/').pop());return of(u,o)};
+ localStorage.setItem('lift.pushUrl','http://127.0.0.1:8787');S.push={sub:{endpoint:'http://localhost:9999/'+'e2e',keys:{p256dh:PUSH_CFG.vapidPublicKey,auth:'AAAAAAAAAAAAAAAAAAAAAA'}}};save()});
+await g.$eval('#go',x=>x.click());await g.waitForSelector('.chk');await g.$eval('.chk',x=>x.click());await new Promise(r=>setTimeout(r,400));
+t=await g.$eval('#tleft',e=>e.innerText);ck(/^(3:00|2:59)$/.test(t)&&await g.$eval('#timer',e=>!e.classList.contains('hidden')),'ticking bench set auto-starts 3:00 rest (exercise rest 180 s): '+t);
+await g.screenshot({path:O+'9-rest-timer.png'});
+await g.$eval('#tplus',x=>x.click());t=await g.$eval('#tleft',e=>e.innerText);ck(/^3:1[45]$/.test(t),'+15 s -> '+t);
+await g.$eval('#tminus',x=>x.click());await g.$eval('#tminus',x=>x.click());t=await g.$eval('#tleft',e=>e.innerText);ck(/^2:(44|45)$/.test(t),'-15 s twice -> '+t);
+const st1=await g.evaluate(()=>S.timer.end-Date.now());const st2=await g.evaluate(()=>JSON.parse(localStorage.getItem('lift.v1')).timer.end-Date.now());ck(Math.abs(st1-st2)<50,'timer persisted as timestamp in storage');
+await g.$eval('#tstop',x=>x.click());await new Promise(r=>setTimeout(r,500));let f=await g.evaluate(()=>window.__f);
+ck(await g.$eval('#timer',e=>e.classList.contains('hidden'))&&f.filter(x=>x==='schedule').length===4&&f.includes('cancel'),'schedule on start + each adjust, cancel on skip: '+f.join(','));
+// foreground end: in-app alert + beep, server push cancelled
+await g.evaluate(()=>{window.__beeps=0;const ob=beep;window.beep=()=>{window.__beeps++;ob()};window.__f=[];timer(5)});await new Promise(r=>setTimeout(r,6000));
+f=await g.evaluate(()=>window.__f);const fg=await g.evaluate(()=>({over:$('#timer').classList.contains('over'),txt:$('#timer').innerText,beeps:window.__beeps}));
+ck(fg.over&&fg.txt.includes('Next set')&&fg.beeps===1,'foreground end -> green "Next set!" banner + beep');ck(f.join()==='schedule,cancel','foreground: push scheduled then cancelled near end ('+f.join()+')');
+await g.screenshot({path:O+'10-rest-over.png'});await g.$eval('#tstop',x=>x.click());
+// background end (app hidden, JS timers frozen): server push must arrive
+await g.evaluate(()=>{Object.defineProperty(document,'visibilityState',{get:()=>'hidden',configurable:true});timer(3);clearInterval(tI)});
+await new Promise(r=>setTimeout(r,5000));const ml=require('fs').readFileSync('/tmp/mock.log','utf8');
+ck(/POST \/e2e enc=aes128gcm/.test(ml)&&(ml.match(/\/e2e/g)||[]).length===1,'background: encrypted Web Push delivered by worker alarm at rest end (exactly once)');
+// returning to the app after it ended
+await g.evaluate(()=>{Object.defineProperty(document,'visibilityState',{get:()=>'visible',configurable:true});document.dispatchEvent(new Event('visibilitychange'))});await new Promise(r=>setTimeout(r,400));
+ck(await g.$eval('#timer',e=>e.classList.contains('over')),'on return, app shows rest-over banner');await g.$eval('#tstop',x=>x.click());
+// alerts card (desktop Chrome headless: not iOS) + help popup
+await g.evaluate(()=>{tab='program';sub=null;render()});t=await g.$eval('#view',e=>e.innerText);ck(/Rest alerts|Notifications blocked/.test(t),'Program tab shows rest-alerts card (headless Chrome: notifications denied by default)');
+await g.$eval('[data-ah]',x=>x.click());await g.waitForSelector('.mbox');t=await g.$eval('.mbox',e=>e.innerText);ck(t.includes('Add to Home Screen'),'iOS help popup');await g.screenshot({path:O+'11-alerts-help.png'});await g.$eval('#mclose',x=>x.click());
+await g.evaluate(()=>localStorage.removeItem('lift.pushUrl'));
 // all images contact sheet
 await g.setContent('<body style="background:#000;margin:0;display:flex;flex-wrap:wrap">'+require('fs').readdirSync('/workspace/workout-app/img').map(f=>`<img src="${U}img/${f}" style="width:195px">`).join('')+'</body>');
 await new Promise(r=>setTimeout(r,800));await g.setViewport({width:390*2,height:1100});await g.screenshot({path:O+'6-all-diagrams.png',fullPage:true});

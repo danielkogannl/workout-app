@@ -1,0 +1,19 @@
+{
+ "name": "push-worker",
+ "version": "1.0.0",
+ "description": "",
+ "main": "index.js",
+ "scripts": {
+  "test": "node test_webpush.mjs",
+  "dev": "wrangler dev",
+  "deploy": "./deploy.sh"
+ },
+ "keywords": [],
+ "author": "",
+ "license": "ISC",
+ "type": "module",
+ "devDependencies": {
+  "wrangler": "^4.86.0"
+ },
+ "private": true
+}

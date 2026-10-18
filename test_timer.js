@@ -1,0 +1,11 @@
+const T=require('./timer.js'),a=require('assert');let n=0;const t=(d,f)=>{f();n++;console.log('ok -',d)};const N=1e12;
+t('start uses exercise rest',()=>{const x=T.start(N,180);a.equal(T.left(x,N),180);a.equal(x.end,N+180000)});
+t('bad/missing rest -> 90 s default',()=>{a.equal(T.left(T.start(N,undefined),N),90);a.equal(T.left(T.start(N,'abc'),N),90)});
+t('countdown from timestamps (survives 2 min in background)',()=>{const x=T.start(N,180);a.equal(T.left(x,N+120000),60);a.equal(T.done(x,N+120000),false)});
+t('ended while backgrounded -> done, 0 left',()=>{const x=T.start(N,90);a.equal(T.done(x,N+600000),true);a.equal(T.left(x,N+600000),0)});
+t('+15 s extends end',()=>{const x=T.adjust(T.start(N,90),15,N);a.equal(T.left(x,N),105)});
+t('-15 s shortens, never below 1 s',()=>{a.equal(T.left(T.adjust(T.start(N,90),-15,N),N),75);a.equal(T.left(T.adjust(T.start(N,10),-15,N),N),1)});
+t('fmt',()=>{a.equal(T.fmt(185),'3:05');a.equal(T.fmt(0),'0:00');a.equal(T.fmt(-3),'0:00')});
+t('frac for progress bar',()=>{const x=T.start(N,100);a.equal(T.frac(x,N+50000),0.5);a.equal(T.frac(x,N+200000),0)});
+t('cancel server push only when visible near the end',()=>{const x={...T.start(N,90),pushed:true};a.equal(T.shouldCancelPush(x,N+88000,true),true);a.equal(T.shouldCancelPush(x,N+88000,false),false);a.equal(T.shouldCancelPush(x,N+10000,true),false);a.equal(T.shouldCancelPush({...x,pushCancelled:true},N+89000,true),false)});
+console.log(n+' timer tests passed');
