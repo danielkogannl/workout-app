@@ -1,5 +1,6 @@
 name = "lift-rest-push"
 main = "src/index.js"
+preview_urls = false
 compatibility_date = "2026-05-01"
 
 [[durable_objects.bindings]]

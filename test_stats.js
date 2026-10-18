@@ -1,0 +1,16 @@
+const T=require('./stats.js'),a=require('assert');let n=0;const t=(d,f)=>{f();n++;console.log('ok -',d)};const S0=1e12,M=60e3;
+t('normal finish: duration = finish - start',()=>{const x=T.times(S0,[S0+5*M,S0+40*M],S0+45*M);a.equal(x.dur,45*M);a.equal(x.auto,false)});
+t('forgotten finish (3 h later) -> last set + 5 min',()=>{const x=T.times(S0,[S0+5*M,S0+50*M],S0+4*3600e3);a.equal(x.dur,55*M);a.equal(x.auto,true)});
+t('no set times + huge gap -> capped 3 h',()=>{const x=T.times(S0,[],S0+10*3600e3);a.equal(x.dur,3*3600e3);a.ok(x.auto)});
+t('very long but active session capped at 3 h',()=>{const x=T.times(S0,[S0+200*M],S0+205*M);a.equal(x.dur,180*M)});
+t('ignores bad/early timestamps',()=>{const x=T.times(S0,[NaN,S0-5*M,S0+30*M],S0+31*M);a.equal(x.dur,31*M)});
+t('median rest ignores long gaps',()=>{a.equal(T.medianRest([S0,S0+2*M,S0+4.5*M,S0+60*M]),2.25*M);a.equal(T.medianRest([S0]),null)});
+t('volume = sum kg × reps (bodyweight 0)',()=>{a.equal(T.volume([{sets:[{w:60,r:8},{w:60,r:7}]},{sets:[{w:0,r:10}]}]),900)});
+t('PR: better e1RM than any previous',()=>{const h=[{ex:[{name:'Bench',sets:[{w:60,r:8}]}]}];a.deepEqual(T.prs({ex:[{name:'bench',sets:[{w:62.5,r:8}]}]},h),[{name:'bench',w:62.5,r:8}]);a.equal(T.prs({ex:[{name:'Bench',sets:[{w:60,r:7}]}]},h).length,0)});
+t('PR: first-ever exercise is not a PR',()=>{a.equal(T.prs({ex:[{name:'New',sets:[{w:50,r:5}]}]},[]).length,0)});
+t('estimate Day A ≈ 55–65 min, deload shorter',()=>{const d={ex:[{sets:4,rest:180},{sets:3,rest:150},{sets:3,rest:120},{sets:3,rest:90},{sets:3,rest:60},{sets:2,rest:60},{sets:2,rest:90}]};const e=T.estimate(d),dl=T.estimate(d,true);a.ok(e>=50&&e<=70,e);a.ok(dl<e)});
+t('plates: 62.5 = 20+1.25 per side; 60 = 20; 20 = empty bar; 61 impossible',()=>{a.deepEqual(T.plates(62.5),[20,1.25]);a.deepEqual(T.plates(60),[20]);a.deepEqual(T.plates(20),[]);a.equal(T.plates(61),null);a.equal(T.plates(10),null)});
+t('fmtDur/clock',()=>{a.equal(T.fmtDur(52*M),'52 min');a.equal(T.fmtDur(75*M),'1 h 15 min');a.equal(T.clock(65e3),'1:05');a.equal(T.clock(3725e3),'1:02:05')});
+t('report includes duration, rating, pain, notes; old sessions without fields OK',()=>{const now=S0+864e5,h=[{date:S0+3600e3,day:'Day A',dur:50*M,rating:4,sleep:'7–8 h',pain:{level:'mild',area:'Low back'},notes:'ok',ex:[{name:'Bench',sets:[{w:60,r:8}]}]},{date:S0,day:'Old',ex:[{name:'Row',sets:[{w:20,r:10}]}]}];
+ const r=T.report(h,7,now);a.match(r,/2 workouts/);a.match(r,/50 min/);a.match(r,/feel 4\/5/);a.match(r,/PAIN mild \(Low back\)/);a.match(r,/Notes: ok/);a.match(r,/Old: vol 200 kg/)});
+console.log(n+' stats tests passed');

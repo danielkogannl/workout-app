@@ -41,3 +41,8 @@ main{padding-bottom:110px}
 #tcol{flex:1;display:flex;flex-direction:column;position:relative;padding-left:8px}#tlbl{font-size:13px;opacity:.85}
 #tleft{font-size:40px;padding-left:0}#timer button{position:relative}
 textarea.notes{background:#2c2c2e;color:#fff;border:0;border-radius:10px;padding:10px;width:100%;box-sizing:border-box;min-height:64px;resize:vertical;font:inherit;margin:6px 0}
+.qk{margin:4px 0 8px}.ql{font-size:14px;margin:8px 0 4px}.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{min-height:38px;padding:0 12px;border-radius:19px;border:1px solid #3a3a3c;background:#2c2c2e;color:#fff;font-size:15px}
+.chip.on{background:#0a84ff;border-color:#0a84ff}
+.pr{color:#ffd60a;font-weight:600;font-size:14px;margin-top:4px}.tag.warnt{background:#ff9f0a;color:#000}
+#hdr .hbtn:last-child{font-variant-numeric:tabular-nums;font-size:15px;color:#8e8e93;text-align:right;min-width:70px}

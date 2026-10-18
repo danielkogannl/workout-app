@@ -66,7 +66,8 @@ const e1rm=(w,r)=>w*(1+r/30);
 let tab='home',sub=null;
 function setTitle(t,back){$('#title').textContent=t;$('#back').classList.toggle('hidden',!back);$('#back').onclick=back||null}
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;sub=null;render()});
-function render(){document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
+let eI=null;const hR=()=>document.querySelector('#hdr .hbtn:last-child');
+function render(){clearInterval(eI);if(hR())hR().textContent='';document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
  ({home:S.active?vWork:vHome,history:vHistory,progress:vProgress,program:vProgram})[tab]();window.scrollTo(0,0)}
 
 const daysSince=()=>S.history.length?Math.floor((Date.now()-S.history[0].date)/864e5):0;
@@ -74,32 +75,44 @@ const progEx=n=>{for(const d of S.program.days)for(const e of d.ex)if(k(e.name)=
 function guide(d){const g=daysSince(),m=[];if(g>GAP_DAYS)m.push(`It’s been ${g} days since your last workout. No problem — just do <b>${esc(d.name)}</b> next. Weights today are ~10% lighter to ease back in; normal progress resumes after.`);
  const h=S.history[0];if(h&&h.offPlan)m.push(`Last time you did <b>${esc(h.day)}</b> out of order. The rotation continues from there: next is <b>${esc(d.name)}</b>.`);
  return m.length?`<div class="card warn"><b>Back on track</b>${m.map(x=>`<p>${x}</p>`).join('')}</div>`:''}
+const prLine=(prs,lbl)=>!prs||!prs.length?'':prs.length===1?`<div class="pr">🏆 ${lbl}: ${esc(prs[0].name)} ${prs[0].w} kg × ${prs[0].r}</div>`:`<div class="pr">🏆 ${prs.length} new bests: ${prs.slice(0,2).map(p=>esc(p.name.replace(/ \(.*\)/,''))+' '+p.w+'×'+p.r).join(', ')}${prs.length>2?' +'+(prs.length-2)+' more':''}</div>`;
 function vHome(){setTitle('Lift');const d=S.program.days[S.next%S.program.days.length],sm=S.summary;
- V.innerHTML=(sm?`<div class="card good"><div class="row"><b>Workout saved ✓</b><button class="x" id="smx">OK</button></div>${sm.map(x=>`<div class="li"><span>${esc(x.name)}</span><span class="nx ${x.kind}">${esc(x.msg)}</span></div>`).join('')}</div>`:'')+
+ V.innerHTML=(sm?`<div class="card good"><div class="row"><b>Workout saved ✓</b><button class="x" id="smx">OK</button></div>${S.summaryMeta?`<div class="muted">${ST.fmtDur(S.summaryMeta.dur)} · ${S.summaryMeta.volume.toLocaleString()} kg lifted</div>${prLine(S.summaryMeta.prs,'New best')}`:''}${sm.map(x=>`<div class="li"><span>${esc(x.name)}</span><span class="nx ${x.kind}">${esc(x.msg)}</span></div>`).join('')}</div>`:'')+
  guide(d)+`<div class="card"><div class="row"><span class="muted">Round ${mesoWeek()+1} of 5${isDeload()?' · easy round':''} · Workout ${S.history.filter(h=>h.date>=(S.mesoStart||0)).length%S.program.days.length+1} of ${S.program.days.length} in this round</span>${ib('data-gl')}</div><div class="big">${esc(d.name)}</div>
  ${d.ex.map(e=>{const st=stat(e);return`<div class="li"><span>${esc(e.name)} ${ib(`data-info="${esc(e.name)}"`)}</span><span class="muted">${isDeload()?Math.ceil(e.sets/2):e.sets} × ${e.min===e.max?e.min:e.min+'–'+e.max} · ${st.w} kg</span></div>`}).join('')}
  <div class="muted" style="margin-top:6px">Effort: ${effort({rir:0})}</div>
- <button class="btn green" id="go">Start ${esc(d.name)}</button><label class="muted" style="margin-top:10px;display:block">Want a different day today?</label><select class="f" id="pick">${S.program.days.map((x,i)=>`<option value="${i}" ${x===d?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
+ <button class="btn green" id="go">Start ${esc(d.name)} <span style="font-weight:400;opacity:.8">· ~${ST.estimate(d,isDeload())} min</span></button><label class="muted" style="margin-top:10px;display:block">Want a different day today?</label><select class="f" id="pick">${S.program.days.map((x,i)=>`<option value="${i}" ${x===d?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
  <div class="card"><div class="row"><b>Optional extra day</b>${ib('data-co')}</div><div class="muted">Sprints, intervals or easy cardio — tap i.</div></div>`;
- $('#go').onclick=()=>start(+$('#pick').value);const x=$('#smx');if(x)x.onclick=()=>{S.summary=null;save();render()};bindInfo()}
+ $('#go').onclick=()=>start(+$('#pick').value);const x=$('#smx');if(x)x.onclick=()=>{S.summary=null;S.summaryMeta=null;save();render()};bindInfo()}
 
 function start(pick){const nd=S.next%S.program.days.length,di=pick==null||isNaN(pick)?nd:pick,d=S.program.days[di],gap=daysSince()>GAP_DAYS;
- S.summary=null;S.active={offPlan:di!==nd,gap,di,deload:isDeload(),day:d.name,date:Date.now(),ex:d.ex.map(e=>{const w=gap?reentry(stat(e).w,daysSince(),e.inc):stat(e).w;const ls=lastSets(e.name);return{name:e.name,min:e.min,max:e.max,inc:e.inc,rest:e.rest,cue:effort(e),last:ls,sets:Array.from({length:isDeload()?Math.ceil(e.sets/2):e.sets},()=>({w,r:e.max,done:false}))}})};save();render()}
+ S.summary=null;S.summaryMeta=null;S.active={start:Date.now(),offPlan:di!==nd,gap,di,deload:isDeload(),day:d.name,date:Date.now(),ex:d.ex.map(e=>{const w=gap?reentry(stat(e).w,daysSince(),e.inc):stat(e).w;const ls=lastSets(e.name);return{name:e.name,min:e.min,max:e.max,inc:e.inc,rest:e.rest,cue:effort(e),last:ls,sets:Array.from({length:isDeload()?Math.ceil(e.sets/2):e.sets},()=>({w,r:e.max,done:false}))}})};save();render()}
 
 function lastSets(n){const h=S.history.find(h=>h.ex.some(x=>k(x.name)===k(n)));return h?h.ex.find(x=>k(x.name)===k(n)).sets.map(s=>s.w+'×'+s.r).join(', '):''}
-function vWork(){const a=S.active;setTitle(a.day);
- V.innerHTML=`<details class="card"><summary><b>Warm-up (3–5 min)</b></summary><ul>${WARM.map(x=>`<li>${x}</li>`).join('')}</ul></details>`+a.ex.map((e,i)=>`<div class="card"><div class="row"><b style="flex:3">${esc(e.name)}</b>${ib(`data-info="${esc(e.name)}"`)}</div><div class="tgt">${e.sets.length} × ${e.min===e.max?e.min:e.min+'–'+e.max} @ ${e.sets[0]?e.sets[0].w:0} kg</div><div class="muted">${esc(e.cue||'')}</div>${e.last?`<div class="muted" style="font-size:12px">Last time: ${esc(e.last)}</div>`:''}
+const lastAct=a=>Math.max(a.start||a.date,...a.ex.flatMap(e=>e.sets.map(s=>s.t||0)));
+const CH=(q,v,cur,label)=>`<button class="chip ${cur===v?'on':''}" data-q="${q}" data-v="${esc(v)}">${label||esc(v)}</button>`;
+function quick(a){const p=a.pain||{};return`<div class="qk"><div class="ql">How did it feel? <span class="muted">(optional)</span></div><div class="chips">${[1,2,3,4,5].map(v=>CH('rating',v,a.rating,v===1?'1 😫':v===5?'5 💪':String(v))).join('')}</div>
+ <div class="ql">Sleep last night</div><div class="chips">${['<6 h','6–7 h','7–8 h','8+ h'].map(v=>CH('sleep',v,a.sleep)).join('')}</div>
+ <div class="ql">Back / pain</div><div class="chips">${['none','mild','bad'].map(v=>CH('pain',v,p.level,v[0].toUpperCase()+v.slice(1))).join('')}</div>
+ ${p.level==='mild'||p.level==='bad'?`<div class="chips">${['Low back','Hamstring','Hip','Shoulder','Knee','Other'].map(v=>CH('area',v,p.area)).join('')}</div>`:''}</div>`}
+function vWork(){const a=S.active;setTitle(a.day);a.start=a.start||a.date;const stale=Date.now()-lastAct(a)>ST.STALE_MS;
+ const clk=()=>{if(hR())hR().textContent='⏱ '+ST.clock(Date.now()-a.start)};clearInterval(eI);clk();eI=setInterval(clk,1000);
+ V.innerHTML=(stale?`<div class="card warn"><b>Still training?</b><p>Your last activity was ${ST.fmtDur(Date.now()-lastAct(a))} ago. If you forgot to finish, just tap <b>Finish workout</b> — the time is counted only until your last set.</p></div>`:'')+`<details class="card"><summary><b>Warm-up (3–5 min)</b></summary><ul>${WARM.map(x=>`<li>${x}</li>`).join('')}</ul></details>`+a.ex.map((e,i)=>`<div class="card"><div class="row"><b style="flex:3">${esc(e.name)}</b>${ib(`data-info="${esc(e.name)}"`)}</div><div class="tgt">${e.sets.length} × ${e.min===e.max?e.min:e.min+'–'+e.max} @ ${e.sets[0]?e.sets[0].w:0} kg</div>${/^barbell/i.test(e.name)&&e.sets[0]?(p=>p?`<div class="muted" style="font-size:12px">Plates per side: ${p.length?p.join(' + '):'empty bar'} (20 kg bar)</div>`:'')(ST.plates(e.sets[0].w)):''}<div class="muted">${esc(e.cue||'')}</div>${e.last?`<div class="muted" style="font-size:12px">Last time: ${esc(e.last)}</div>`:''}
  <div class="set muted" style="font-size:12px;margin:4px 0"><span class="n">Set</span><span style="text-align:center">kg</span><span style="text-align:center">reps</span><span></span></div>
  ${e.sets.map((s,j)=>`<div class="set ${s.done?'done':''}"><span class="n">${j+1}</span><input inputmode="decimal" data-i="${i}" data-j="${j}" data-f="w" value="${s.w}"><input inputmode="numeric" data-i="${i}" data-j="${j}" data-f="r" value="${s.r}"><button class="chk ${s.done?'done':''}" data-i="${i}" data-j="${j}">✓</button></div>`).join('')}
  <div class="row"><button class="btn sec" data-add="${i}">+ Set</button><button class="btn sec" data-rm="${i}">− Set</button></div></div>`).join('')+
  alertCard()+`<div class="card"><button class="btn sec" id="addx">+ Add an extra / swapped exercise</button></div><div class="card"><details><summary><b>Cool-down (2 min)</b></summary><ul>${COOL.map(x=>`<li>${x}</li>`).join('')}</ul></details>
- <label for="notes"><b>Notes</b></label><textarea class="f notes" id="notes" rows="3" placeholder="How did it feel? Pain, energy, sleep, swaps...">${esc(typeof a.notes==='string'?a.notes:'')}</textarea><button class="btn green" id="fin">Finish workout</button><button class="btn red" id="cancel">Discard workout</button></div>`;
- V.querySelectorAll('input[data-f]').forEach(n=>n.onchange=()=>{const s=a.ex[n.dataset.i].sets[n.dataset.j];s[n.dataset.f]=parseFloat(n.value.replace(',','.'))||0;
+ ${quick(a)}<label for="notes"><b>Notes</b></label><textarea class="f notes" id="notes" rows="3" placeholder="How did it feel? Pain, energy, sleep, swaps...">${esc(typeof a.notes==='string'?a.notes:'')}</textarea><button class="btn green" id="fin">Finish workout</button><button class="btn red" id="cancel">Discard workout</button></div>`;
+ V.querySelectorAll('input[data-f]').forEach(n=>n.onchange=()=>{const s=a.ex[n.dataset.i].sets[n.dataset.j];s[n.dataset.f]=Math.max(0,parseFloat(n.value.replace(',','.'))||0);
+  const cap=CAPS[k(a.ex[n.dataset.i].name)];if(n.dataset.f==='w'&&cap&&s.w>cap){s.w=cap;modal(`<h3>Max ${cap} kg</h3><p>To protect your back, ${esc(a.ex[n.dataset.i].name)} stays at ${cap} kg or less. Make it harder with slower lowering (3 s) or a pause instead.</p>`)}
   if(n.dataset.f==='w')a.ex[n.dataset.i].sets.forEach((x,j)=>{if(j>n.dataset.j&&!x.done)x.w=s.w});save();vWork()});
- V.querySelectorAll('.chk').forEach(b=>b.onclick=()=>{unlockAudio();const s=a.ex[b.dataset.i].sets[b.dataset.j];s.done=!s.done;save();if(s.done)timer(a.ex[b.dataset.i].rest||S.rest);const y=scrollY;vWork();scrollTo(0,y)});
+ V.querySelectorAll('.chk').forEach(b=>b.onclick=()=>{unlockAudio();const s=a.ex[b.dataset.i].sets[b.dataset.j];s.done=!s.done;if(s.done)s.t=Date.now();else delete s.t;save();if(s.done&&a.ex.some(e=>e.sets.some(x=>!x.done)))timer(a.ex[b.dataset.i].rest||S.rest);else if(s.done)stopT();const y=scrollY;vWork();scrollTo(0,y)});
  V.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const ss=a.ex[b.dataset.add].sets,l=ss[ss.length-1]||{w:0,r:0};ss.push({w:l.w,r:l.r,done:false});save();const y=scrollY;vWork();scrollTo(0,y)});
  V.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{a.ex[b.dataset.rm].sets.pop();save();const y=scrollY;vWork();scrollTo(0,y)});
  bindInfo();bindAlerts();$('#addx').onclick=()=>{const n=(prompt('Exercise name (e.g. the machine you used instead):')||'').trim();if(!n)return;const pe=progEx(n),w=pe?stat(pe).w:0;a.ex.push({name:pe?pe.name:n,min:pe?pe.min:8,max:pe?pe.max:12,inc:pe?pe.inc:2.5,rest:pe&&pe.rest||90,cue:'Log what you actually do',last:lastSets(n),sets:Array.from({length:3},()=>({w,r:pe?pe.max:10,done:false}))});save();vWork();scrollTo(0,document.body.scrollHeight)};
+ V.querySelectorAll('[data-q]').forEach(b=>b.onclick=()=>{const q=b.dataset.q,v=q==='rating'?+b.dataset.v:b.dataset.v;
+  if(q==='pain'){a.pain=a.pain&&a.pain.level===v?null:{level:v,area:v==='none'?null:(a.pain&&a.pain.area)||null}}else if(q==='area'){a.pain={...(a.pain||{}),area:a.pain&&a.pain.area===v?null:v}}else a[q]=a[q]===v?null:v;
+  save();const y=scrollY;vWork();scrollTo(0,y)});
  $('#notes').oninput=e=>{a.notes=e.target.value;save()};$('#fin').onclick=finish;$('#cancel').onclick=()=>{if(confirm('Discard this workout?')){S.active=null;save();render()}}}
 
 function finish(){const a=S.active,done=a.ex.map(e=>({...e,sets:cleanSets((e.sets||[]).filter(s=>s.done))})).filter(e=>e.sets.length);
@@ -107,7 +120,11 @@ function finish(){const a=S.active,done=a.ex.map(e=>({...e,sets:cleanSets((e.set
  if(!confirm('Finish workout?'))return;
  S.summary=[];done.forEach(e=>{const key=k(e.name),pe=progEx(e.name)||{},prev=a.gap?{w:Math.max(...e.sets.map(s=>s.w)),fails:0}:S.st[key],planned=(a.ex.find(x=>x.name===e.name)||e).sets.length,cfg={min:e.min||pe.min,max:e.max||pe.max,inc:e.inc!=null?e.inc:pe.inc};
   const r=nextTarget(prev,cfg,e.sets,planned,!!a.deload,CAPS[key]);S.st[key]={w:r.w,fails:r.fails,note:''};S.summary.push({name:e.name,msg:r.msg,kind:r.kind})});
- S.history.unshift({id:a.date,date:a.date,day:a.day,offPlan:!!a.offPlan,notes:typeof a.notes==='string'?a.notes.trim():'',ex:done.map(e=>({name:e.name,sets:e.sets.map(s=>({w:s.w,r:s.r}))}))});
+ const ts=a.ex.flatMap(e=>(e.sets||[]).filter(s=>s.done&&s.t).map(s=>s.t)),tm=ST.times(a.start||a.date,ts,Date.now());
+ const hex=done.map(e=>{const raw=(a.ex.find(x=>x.name===e.name)||{sets:[]}).sets.filter(s=>s.done&&(parseInt(s.r)||0)>0);return{name:e.name,sets:e.sets.map((s,j)=>raw[j]&&raw[j].t?{w:s.w,r:s.r,t:raw[j].t}:{w:s.w,r:s.r})}});
+ const entry={id:a.date,date:a.date,day:a.day,offPlan:!!a.offPlan,deload:!!a.deload,start:tm.start,end:tm.end,dur:tm.dur,durAuto:tm.auto,volume:ST.volume(hex),restMed:ST.medianRest(ts),
+  rating:a.rating||null,sleep:a.sleep||null,pain:a.pain&&a.pain.level?a.pain:null,notes:typeof a.notes==='string'?a.notes.trim():'',ex:hex};
+ entry.prs=ST.prs(entry,S.history);S.summaryMeta={dur:entry.dur,volume:entry.volume,prs:entry.prs};S.history.unshift(entry);
  S.next=(a.di+1)%S.program.days.length;S.active=null;save();stopT();render()}
 
 // ---- Rest timer (timestamp-based) + beep + Web Push at rest end ----
@@ -156,11 +173,16 @@ function bindAlerts(){V.querySelectorAll('[data-ae]').forEach(b=>b.onclick=enabl
 // keep subscription fresh (browsers may rotate it)
 if('serviceWorker'in navigator&&'PushManager'in window&&S.push)navigator.serviceWorker.ready.then(r=>r.pushManager.getSubscription()).then(s=>{if(s){S.push.sub=s.toJSON();save()}}).catch(()=>{});
 
+function copyReport(){const txt=ST.report(S.history,7);const done=()=>modal('<h3>Report copied ✓</h3><p>Paste it into the chat with your coach.</p>');
+ const show=()=>{modal(`<h3>Report</h3><p class="muted">Select all and copy:</p><textarea class="f notes" rows="12" readonly>${esc(txt)}</textarea>`)};
+ if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done,show);else show()}
 function vHistory(){setTitle('History');if(!S.history.length){V.innerHTML='<div class="card muted">No workouts yet.</div>';return}
- V.innerHTML=S.history.map((h,i)=>`<div class="card"><div class="row"><b>${esc(h.day)}</b><span class="muted" style="text-align:right">${new Date(h.date).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})}</span></div>
+ V.innerHTML=`<div class="card"><button class="btn" id="rep">Copy report for coach (last 7 days)</button></div>`+S.history.map((h,i)=>`<div class="card"><div class="row"><b>${esc(h.day)}</b><span class="muted" style="text-align:right">${new Date(h.date).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})}</span></div>
+ <div class="muted" style="font-size:13px">${[h.dur?ST.fmtDur(h.dur):null,(h.volume!=null?h.volume:ST.volume(h.ex)).toLocaleString()+' kg',h.rating?'felt '+h.rating+'/5':null,h.sleep?'slept '+esc(h.sleep):null].filter(Boolean).join(' · ')}${h.pain&&h.pain.level&&h.pain.level!=='none'?` <span class="tag warnt">pain: ${esc(h.pain.level)}${h.pain.area?' · '+esc(h.pain.area):''}</span>`:''}</div>
+ ${prLine(h.prs,'Best')}
  ${h.ex.map(e=>`<div class="li"><span>${esc(e.name)}</span><span class="muted">${e.sets.map(s=>s.w+'×'+s.r).join(', ')}</span></div>`).join('')}
  <textarea class="f notes" data-note="${i}" rows="2" placeholder="How did it feel? Pain, energy, sleep, swaps...">${esc(typeof h.notes==='string'?h.notes:'')}</textarea><button class="x" data-del="${i}">Delete</button></div>`).join('');
- V.querySelectorAll('[data-note]').forEach(t=>t.oninput=()=>{S.history[+t.dataset.note].notes=t.value;save()});V.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete this session?')){S.history.splice(+b.dataset.del,1);save();render()}})}
+ $('#rep').onclick=copyReport;V.querySelectorAll('[data-note]').forEach(t=>t.oninput=()=>{S.history[+t.dataset.note].notes=t.value;save()});V.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete this session?')){S.history.splice(+b.dataset.del,1);save();render()}})}
 
 function series(name,mode){return S.history.slice().reverse().map(h=>{const e=h.ex.find(x=>k(x.name)===k(name));if(!e)return null;
  return{t:h.date,v:Math.max(...e.sets.map(s=>mode==='1rm'?e1rm(s.w,s.r):s.w))}}).filter(Boolean)}

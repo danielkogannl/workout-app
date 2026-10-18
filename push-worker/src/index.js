@@ -29,4 +29,4 @@ export class RestTimer{constructor(state,env){this.state=state;this.env=env}
   await st.setAlarm(b.at);return Response.json({ok:true,at:b.at})}
  async alarm(){const st=this.state.storage,j=await st.get('job');if(!j)return;
   const r=await sendPush(j.sub,JSON.stringify({title:j.title,body:j.body,at:j.at}),{publicKey:this.env.VAPID_PUBLIC_KEY,privateKey:this.env.VAPID_PRIVATE_KEY},this.env.VAPID_SUBJECT||'mailto:danielkogannl@users.noreply.github.com');
-  await st.delete('job');if(r.status>=500)throw new Error('push service '+r.status)}}
+  console.log('push',new URL(j.sub.endpoint).host,r.status);await st.delete('job');if(r.status===404||r.status===410)console.log('subscription expired');if(r.status>=500)throw new Error('push service '+r.status)}}
