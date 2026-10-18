@@ -40,3 +40,4 @@ main{padding-bottom:110px}
 #tbar{position:absolute;left:0;top:0;bottom:0;background:rgba(255,255,255,.18);width:0;transition:width .25s linear;pointer-events:none}
 #tcol{flex:1;display:flex;flex-direction:column;position:relative;padding-left:8px}#tlbl{font-size:13px;opacity:.85}
 #tleft{font-size:40px;padding-left:0}#timer button{position:relative}
+textarea.notes{background:#2c2c2e;color:#fff;border:0;border-radius:10px;padding:10px;width:100%;box-sizing:border-box;min-height:64px;resize:vertical;font:inherit;margin:6px 0}

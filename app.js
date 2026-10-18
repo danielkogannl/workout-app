@@ -93,21 +93,21 @@ function vWork(){const a=S.active;setTitle(a.day);
  ${e.sets.map((s,j)=>`<div class="set ${s.done?'done':''}"><span class="n">${j+1}</span><input inputmode="decimal" data-i="${i}" data-j="${j}" data-f="w" value="${s.w}"><input inputmode="numeric" data-i="${i}" data-j="${j}" data-f="r" value="${s.r}"><button class="chk ${s.done?'done':''}" data-i="${i}" data-j="${j}">✓</button></div>`).join('')}
  <div class="row"><button class="btn sec" data-add="${i}">+ Set</button><button class="btn sec" data-rm="${i}">− Set</button></div></div>`).join('')+
  alertCard()+`<div class="card"><button class="btn sec" id="addx">+ Add an extra / swapped exercise</button></div><div class="card"><details><summary><b>Cool-down (2 min)</b></summary><ul>${COOL.map(x=>`<li>${x}</li>`).join('')}</ul></details>
- <button class="btn green" id="fin">Finish workout</button><button class="btn red" id="cancel">Discard workout</button></div>`;
+ <label for="notes"><b>Notes</b></label><textarea class="f notes" id="notes" rows="3" placeholder="How did it feel? Pain, energy, sleep, swaps...">${esc(typeof a.notes==='string'?a.notes:'')}</textarea><button class="btn green" id="fin">Finish workout</button><button class="btn red" id="cancel">Discard workout</button></div>`;
  V.querySelectorAll('input[data-f]').forEach(n=>n.onchange=()=>{const s=a.ex[n.dataset.i].sets[n.dataset.j];s[n.dataset.f]=parseFloat(n.value.replace(',','.'))||0;
   if(n.dataset.f==='w')a.ex[n.dataset.i].sets.forEach((x,j)=>{if(j>n.dataset.j&&!x.done)x.w=s.w});save();vWork()});
  V.querySelectorAll('.chk').forEach(b=>b.onclick=()=>{unlockAudio();const s=a.ex[b.dataset.i].sets[b.dataset.j];s.done=!s.done;save();if(s.done)timer(a.ex[b.dataset.i].rest||S.rest);const y=scrollY;vWork();scrollTo(0,y)});
  V.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{const ss=a.ex[b.dataset.add].sets,l=ss[ss.length-1]||{w:0,r:0};ss.push({w:l.w,r:l.r,done:false});save();const y=scrollY;vWork();scrollTo(0,y)});
  V.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{a.ex[b.dataset.rm].sets.pop();save();const y=scrollY;vWork();scrollTo(0,y)});
  bindInfo();bindAlerts();$('#addx').onclick=()=>{const n=(prompt('Exercise name (e.g. the machine you used instead):')||'').trim();if(!n)return;const pe=progEx(n),w=pe?stat(pe).w:0;a.ex.push({name:pe?pe.name:n,min:pe?pe.min:8,max:pe?pe.max:12,inc:pe?pe.inc:2.5,rest:pe&&pe.rest||90,cue:'Log what you actually do',last:lastSets(n),sets:Array.from({length:3},()=>({w,r:pe?pe.max:10,done:false}))});save();vWork();scrollTo(0,document.body.scrollHeight)};
- $('#fin').onclick=finish;$('#cancel').onclick=()=>{if(confirm('Discard this workout?')){S.active=null;save();render()}}}
+ $('#notes').oninput=e=>{a.notes=e.target.value;save()};$('#fin').onclick=finish;$('#cancel').onclick=()=>{if(confirm('Discard this workout?')){S.active=null;save();render()}}}
 
 function finish(){const a=S.active,done=a.ex.map(e=>({...e,sets:cleanSets((e.sets||[]).filter(s=>s.done))})).filter(e=>e.sets.length);
  if(!done.length){alert('Tick at least one set (✓) first.');return}
  if(!confirm('Finish workout?'))return;
  S.summary=[];done.forEach(e=>{const key=k(e.name),pe=progEx(e.name)||{},prev=a.gap?{w:Math.max(...e.sets.map(s=>s.w)),fails:0}:S.st[key],planned=(a.ex.find(x=>x.name===e.name)||e).sets.length,cfg={min:e.min||pe.min,max:e.max||pe.max,inc:e.inc!=null?e.inc:pe.inc};
   const r=nextTarget(prev,cfg,e.sets,planned,!!a.deload,CAPS[key]);S.st[key]={w:r.w,fails:r.fails,note:''};S.summary.push({name:e.name,msg:r.msg,kind:r.kind})});
- S.history.unshift({id:a.date,date:a.date,day:a.day,offPlan:!!a.offPlan,ex:done.map(e=>({name:e.name,sets:e.sets.map(s=>({w:s.w,r:s.r}))}))});
+ S.history.unshift({id:a.date,date:a.date,day:a.day,offPlan:!!a.offPlan,notes:typeof a.notes==='string'?a.notes.trim():'',ex:done.map(e=>({name:e.name,sets:e.sets.map(s=>({w:s.w,r:s.r}))}))});
  S.next=(a.di+1)%S.program.days.length;S.active=null;save();stopT();render()}
 
 // ---- Rest timer (timestamp-based) + beep + Web Push at rest end ----
@@ -159,8 +159,8 @@ if('serviceWorker'in navigator&&'PushManager'in window&&S.push)navigator.service
 function vHistory(){setTitle('History');if(!S.history.length){V.innerHTML='<div class="card muted">No workouts yet.</div>';return}
  V.innerHTML=S.history.map((h,i)=>`<div class="card"><div class="row"><b>${esc(h.day)}</b><span class="muted" style="text-align:right">${new Date(h.date).toLocaleDateString(undefined,{weekday:'short',day:'numeric',month:'short'})}</span></div>
  ${h.ex.map(e=>`<div class="li"><span>${esc(e.name)}</span><span class="muted">${e.sets.map(s=>s.w+'×'+s.r).join(', ')}</span></div>`).join('')}
- <button class="x" data-del="${i}">Delete</button></div>`).join('');
- V.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete this session?')){S.history.splice(+b.dataset.del,1);save();render()}})}
+ <textarea class="f notes" data-note="${i}" rows="2" placeholder="How did it feel? Pain, energy, sleep, swaps...">${esc(typeof h.notes==='string'?h.notes:'')}</textarea><button class="x" data-del="${i}">Delete</button></div>`).join('');
+ V.querySelectorAll('[data-note]').forEach(t=>t.oninput=()=>{S.history[+t.dataset.note].notes=t.value;save()});V.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{if(confirm('Delete this session?')){S.history.splice(+b.dataset.del,1);save();render()}})}
 
 function series(name,mode){return S.history.slice().reverse().map(h=>{const e=h.ex.find(x=>k(x.name)===k(name));if(!e)return null;
  return{t:h.date,v:Math.max(...e.sets.map(s=>mode==='1rm'?e1rm(s.w,s.r):s.w))}}).filter(Boolean)}

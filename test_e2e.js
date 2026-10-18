@@ -65,6 +65,24 @@ ck(await g.$eval('#timer',e=>e.classList.contains('over')),'on return, app shows
 await g.evaluate(()=>{tab='program';sub=null;render()});t=await g.$eval('#view',e=>e.innerText);ck(/Rest alerts|Notifications blocked/.test(t),'Program tab shows rest-alerts card (headless Chrome: notifications denied by default)');
 await g.$eval('[data-ah]',x=>x.click());await g.waitForSelector('.mbox');t=await g.$eval('.mbox',e=>e.innerText);ck(t.includes('Add to Home Screen'),'iOS help popup');await g.screenshot({path:O+'11-alerts-help.png'});await g.$eval('#mclose',x=>x.click());
 await g.evaluate(()=>localStorage.removeItem('lift.pushUrl'));
+// ---- notes ----
+await g.evaluate(()=>{S.active=null;S.summary=null;tab='home';save();render()});await g.$eval('#go',x=>x.click());await g.waitForSelector('#notes');
+ck(await g.$eval('#notes',e=>e.placeholder.startsWith('How did it feel?')),'notes textarea with placeholder above Finish');
+await g.focus('#notes');await g.keyboard.type('Felt strong, slight low-back tightness. Slept 6h.');
+ck((await g.evaluate(()=>JSON.parse(localStorage.getItem('lift.v1')).active.notes)).includes('Slept 6h'),'notes autosaved to active session while typing');
+await g.reload();await g.waitForSelector('#notes');ck((await g.$eval('#notes',e=>e.value)).includes('low-back'),'notes survive reload mid-workout');
+await g.evaluate(()=>{const c=document.querySelector('.chk');c.click()});await g.screenshot({path:O+'12-workout-notes.png'});
+await g.evaluate(()=>{const n=document.querySelector('#notes');n.scrollIntoView()});await g.screenshot({path:O+'12-workout-notes.png'});
+await g.$eval('#tstop',x=>x.click());await g.$eval('#fin',x=>x.click());await g.waitForSelector('.card.good');
+let hs=await g.evaluate(()=>JSON.parse(localStorage.getItem('lift.v1')).history[0]);ck(hs.notes==='Felt strong, slight low-back tightness. Slept 6h.','finish stores history[0].notes');
+await g.evaluate(()=>{tab='history';render()});t=await g.$eval('[data-note="0"]',e=>e.value);ck(t.includes('Slept 6h'),'history shows notes');
+await g.$eval('[data-note="0"]',e=>{e.value='Edited: back fine next day';e.dispatchEvent(new Event('input'))});
+hs=await g.evaluate(()=>JSON.parse(localStorage.getItem('lift.v1')).history[0]);ck(hs.notes==='Edited: back fine next day','notes editable in history');
+await g.screenshot({path:O+'13-history-notes.png'});
+const exp=await g.evaluate(()=>JSON.parse(JSON.stringify(S)));ck(exp.history[0].notes==='Edited: back fine next day','export JSON (whole state) includes notes');
+// import old backup without notes, plus junk notes type
+await g.evaluate(()=>{const s=JSON.parse(JSON.stringify(S));s.history.forEach(h=>delete h.notes);s.history[1].notes=42;localStorage.setItem('lift.v1',JSON.stringify(s))});await g.reload();await g.waitForSelector('#view');
+await g.evaluate(()=>{tab='history';render()});const nv=await g.$$eval('[data-note]',a=>a.map(e=>e.value));ck(nv.length>0&&nv.every(v=>v===''),'old data without notes (or non-string) renders, empty notes');
 // all images contact sheet
 await g.setContent('<body style="background:#000;margin:0;display:flex;flex-wrap:wrap">'+require('fs').readdirSync('/workspace/workout-app/img').map(f=>`<img src="${U}img/${f}" style="width:195px">`).join('')+'</body>');
 await new Promise(r=>setTimeout(r,800));await g.setViewport({width:390*2,height:1100});await g.screenshot({path:O+'6-all-diagrams.png',fullPage:true});
